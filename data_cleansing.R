@@ -34,14 +34,79 @@ create_data_frame <- function(dataframe, start, end, head) {
             for (data in dataframe[, cols]) {
                 if (is.numeric(data)) {
                     if (is.na(data)) {
-                        datalist <- c(datalist, data)
                         null_values <- null_values + 1
                     }
                     else{
                         if (data == 99) {
                             null_values <- null_values + 1
                         }
-                        datalist <- c(datalist, data)
+                    }
+                    datalist <- c(datalist, data)
+                }
+                else{
+                    print("No numeric value")
+                }
+            }
+
+            null_data[[null_data_col]] <<- c(head[row_counter],
+                                            null_values,
+                                            (100 * null_values) /
+                                            length(dataframe[, cols]))
+            datalist <- c(datalist, (c("Null Info",
+                                     null_values,
+                                     (100 * null_values) /
+                                     length(dataframe[, cols]))))
+            null_data_col <<- null_data_col + 1
+
+            return_list[[row_counter]] <- datalist
+            row_counter <- row_counter + 1
+        }
+    }
+    return(return_list)
+}
+
+create_data_frame_no_null <- function(dataframe, start, end, head) { # nolint
+    return_list <- list()
+    row_counter <- 1
+
+    if ((end - start) + 1 == length(head)) {
+        for (cols in start:end) {
+            mean_data <- 0
+            calc_mean <- 0
+
+            datalist <- c(head[row_counter])
+            null_values <- 0
+
+            for (data in dataframe[, cols]) {
+                if (is.numeric(data)) {
+                    if (is.na(data)) {
+                        null_values <- null_values + 1
+                    }
+                    else{
+                        if (data == 99) {
+                            null_values <- null_values + 1
+                        }
+                        else{
+                            calc_mean <- calc_mean + data
+                        }
+                    }
+                }
+            }
+
+            mean_data <- calc_mean / (length(dataframe[, cols]) - null_values)
+
+            for (data in dataframe[, cols]) {
+                if (is.numeric(data)) {
+                    if (is.na(data)) {
+                        datalist <- c(datalist, mean_data)
+                    }
+                    else{
+                        if (data == 99) {
+                            datalist <- c(datalist, mean_data)
+                        }
+                        else{
+                            datalist <- c(datalist, data)
+                        }
                     }
                 }
             }
@@ -63,6 +128,16 @@ create_data_frame <- function(dataframe, start, end, head) {
     return(return_list)
 }
 
+show_summary <- function(data_list) {
+    for (group in data_list) {
+        for (category in group) {
+            item <- as.numeric(category)
+            print(category[1])
+            print(summary(item))
+        }
+    }
+}
+
 main <- function() {
     check_libraries()
     bbdd_name <- "BBDD_Trabjo Final_EPG.xlsx"
@@ -72,11 +147,15 @@ main <- function() {
     qst26 <- list()
     extra_data <- list()
 
-    general_list[[1]] <- create_data_frame(imported_data, 1, 2, c(year, id))
-    general_list[[2]] <- create_data_frame(imported_data, 11, 11, c(ben_ctr))
-    general_list[[3]] <- create_data_frame(imported_data, 180, 180, c(q38))
+    general_list[[1]] <- create_data_frame(imported_data,
+                                                   1, 2, c(year, id))
+    general_list[[2]] <- create_data_frame(imported_data,
+                                                   11, 11, c(ben_ctr))
+    general_list[[3]] <- create_data_frame(imported_data,
+                                                   180, 180, c(q38))
 
-    qst26[[1]] <- create_data_frame(imported_data, 115, 141, c(q26))
+    qst26[[1]] <- create_data_frame(imported_data,
+                                            115, 141, c(q26))
 
     extra_data[[1]] <- create_data_frame(imported_data,
                                         5, 5,
@@ -95,6 +174,13 @@ main <- function() {
     extra_data[[5]] <- create_data_frame(imported_data,
                                         97, 100, c("BEN_CURSO", "BEN_NIVEL",
                                         "CONY_CURSO", "CONY_NIVEL"))
+
+    #item <- as.numeric(general_list[[2]]) # nolint
+    #print(mean(item, na.rm = TRUE)) # nolint
+
+    show_summary(general_list)
+    show_summary(qst26)
+    show_summary(extra_data)
 
     #Main data
     write.xlsx(general_list, file = "myworkbook.xlsx",
