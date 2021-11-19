@@ -1,0 +1,7 @@
+install.packages("curl")
+install.packages("openssl")
+install.packages("xml2")
+install.packages("httr")
+install.packages("roxygen2")
+install.packages("lintr")
+install.packages("languageserver")

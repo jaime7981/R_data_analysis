@@ -1,0 +1,47 @@
+PRINCIPALES DATOS
+1 y 2: año y id
+nombre celda: año to id
+posicion celda: A to B
+numero celda: 1 to 2
+
+12: Beneficiario
+nombre celda: _12_tipobeneficiario
+posicion celda: K
+numero celda: 11
+
+26: tecnologias usadas 
+nombre celda: _26a to _26aa
+posicion celda: Dk to EL
+numero de celda: 115 to 141
+
+38: organizaciones agrícolas o con fines agrícolas
+nombre celda: _38_org
+posicion celda: FX
+numero celda: 180
+
+
+OTROS DATOS
+
+Superficie del predio
+numero celda: 92 to 96
+
+nivel escolar
+numero celda: 97 to 100
+
+region
+numero celda: 5
+
+zona
+numero celda: 10
+
+Edad
+numero celda: 12
+
+sexo
+numero celda: 13
+
+programa fomento
+numero celda: 14
+
+programa ayuda
+numero celda: 15
