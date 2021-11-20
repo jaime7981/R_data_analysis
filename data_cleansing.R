@@ -1,4 +1,3 @@
-#CONSTANTS
 year <- "YEAR"
 id <- "ID"
 ben_ctr <- "BEN_CONTR"
@@ -21,6 +20,23 @@ check_libraries <- function() {
 
     library("xlsx")
     library("assertthat")
+    library("plyr")
+    library("rlist")
+}
+
+show_summary <- function(data_list, col_name) {
+    for (group in data_list) {
+        for (category in group) {
+            item <- as.numeric(category)
+            print(category[1])
+            print(summary(item))
+            print(plyr::count(item))
+
+            media <- as.numeric(summary(item)[4])
+            t <- (media - 0.7) / (sd(item, na.rm = TRUE) / sqrt(length(item)))
+            print(2 * pt(-abs(t), df = length(item) - 1))
+        }
+    }
 }
 
 create_data_frame <- function(dataframe, start, end, head) {
@@ -29,113 +45,77 @@ create_data_frame <- function(dataframe, start, end, head) {
 
     if ((end - start) + 1 == length(head)) {
         for (cols in start:end) {
-            datalist <- c(head[row_counter])
+            prev_datalist <- c(head[row_counter])
             null_values <- 0
             for (data in dataframe[, cols]) {
                 if (is.numeric(data)) {
                     if (is.na(data)) {
                         null_values <- null_values + 1
+                        prev_datalist <- c(prev_datalist, NA)
                     }
                     else{
                         if (data == 99) {
                             null_values <- null_values + 1
+                            prev_datalist <- c(prev_datalist, NA)
+                        }
+                        else if (round(data) < 1.00) {
+                            null_values <- null_values + 1
+                            prev_datalist <- c(prev_datalist, NA)
+                        }
+                        else {
+                            prev_datalist <- c(prev_datalist,
+                                                round(data, digits = 2))
                         }
                     }
-                    datalist <- c(datalist, data)
                 }
                 else{
                     print("No numeric value")
                 }
             }
 
+            data_loss_perc <- (100 * null_values) / length(dataframe[, cols])
+
             null_data[[null_data_col]] <<- c(head[row_counter],
-                                            null_values,
-                                            (100 * null_values) /
-                                            length(dataframe[, cols]))
-            datalist <- c(datalist, (c("Null Info",
-                                     null_values,
-                                     (100 * null_values) /
-                                     length(dataframe[, cols]))))
+                                            null_values, data_loss_perc)
+            prev_datalist <- c(prev_datalist, (c("Null Info",
+                                     null_values, data_loss_perc)))
             null_data_col <<- null_data_col + 1
 
-            return_list[[row_counter]] <- datalist
-            row_counter <- row_counter + 1
-        }
-    }
-    return(return_list)
-}
+            if (data_loss_perc < 35) {
+                median_value <- as.numeric(summary(as.numeric(prev_datalist))[3]) # nolint
 
-create_data_frame_no_null <- function(dataframe, start, end, head) { # nolint
-    return_list <- list()
-    row_counter <- 1
-
-    if ((end - start) + 1 == length(head)) {
-        for (cols in start:end) {
-            mean_data <- 0
-            calc_mean <- 0
-
-            datalist <- c(head[row_counter])
-            null_values <- 0
-
-            for (data in dataframe[, cols]) {
-                if (is.numeric(data)) {
-                    if (is.na(data)) {
-                        null_values <- null_values + 1
-                    }
-                    else{
-                        if (data == 99) {
+                datalist <- c(head[row_counter])
+                null_values <- 0
+                for (data in dataframe[, cols]) {
+                    if (is.numeric(data)) {
+                        if (is.na(data)) {
                             null_values <- null_values + 1
+                            datalist <- c(datalist, median_value)
                         }
                         else{
-                            calc_mean <- calc_mean + data
+                            if (data == 99) {
+                                null_values <- null_values + 1
+                                datalist <- c(datalist, median_value)
+                            }
+                            else if (round(data) < 1.00) {
+                                null_values <- null_values + 1
+                                datalist <- c(datalist, median_value)
+                            }
+                            else {
+                                datalist <- c(datalist, round(data, digits = 2))
+                            }
                         }
-                    }
-                }
-            }
-
-            mean_data <- calc_mean / (length(dataframe[, cols]) - null_values)
-
-            for (data in dataframe[, cols]) {
-                if (is.numeric(data)) {
-                    if (is.na(data)) {
-                        datalist <- c(datalist, mean_data)
                     }
                     else{
-                        if (data == 99) {
-                            datalist <- c(datalist, mean_data)
-                        }
-                        else{
-                            datalist <- c(datalist, data)
-                        }
+                        print("No numeric value")
                     }
                 }
+                return_list[[row_counter]] <- datalist
+                row_counter <- row_counter + 1
             }
-
-            null_data[[null_data_col]] <<- c(head[row_counter],
-                                            null_values,
-                                            (100 * null_values) /
-                                            length(dataframe[, cols]))
-            datalist <- c(datalist, (c("Null Info",
-                                     null_values,
-                                     (100 * null_values) /
-                                     length(dataframe[, cols]))))
-            null_data_col <<- null_data_col + 1
-
-            return_list[[row_counter]] <- datalist
-            row_counter <- row_counter + 1
         }
     }
     return(return_list)
-}
-
-show_summary <- function(data_list) {
-    for (group in data_list) {
-        for (category in group) {
-            item <- as.numeric(category)
-            print(category[1])
-            print(summary(item))
-        }
-    }
 }
 
 main <- function() {
@@ -143,6 +123,7 @@ main <- function() {
     bbdd_name <- "BBDD_Trabjo Final_EPG.xlsx"
     imported_data <- xlsx::read.xlsx(bbdd_name, sheetIndex = 1)
 
+    filtered_data <- list()
     general_list <- list()
     qst26 <- list()
     extra_data <- list()
@@ -172,31 +153,61 @@ main <- function() {
                                         c("T_OPERACION", "T_PROPIO",
                                         "T_ARRENDADO", "T_PROD", "T_RIEGO"))
     extra_data[[5]] <- create_data_frame(imported_data,
-                                        97, 100, c("BEN_CURSO", "BEN_NIVEL",
-                                        "CONY_CURSO", "CONY_NIVEL"))
+                                        98, 98, c("BEN_NIVEL"))
+    #extra_data[[5]] <- create_data_frame(imported_data,
+    #                                    97, 100, c("BEN_CURSO", "BEN_NIVEL",
+    #                                    "CONY_CURSO", "CONY_NIVEL"))
 
-    #item <- as.numeric(general_list[[2]]) # nolint
-    #print(mean(item, na.rm = TRUE)) # nolint
+    counter <- 1
+    for (list in c(general_list, qst26, extra_data)) {
+        filtered_data[[counter]] <- list
+        counter <- counter + 1
+    }
 
-    show_summary(general_list)
-    show_summary(qst26)
-    show_summary(extra_data)
+    qualitative_data <- c(ben_ctr, "REGION", "ZONA", "SEXO",
+                                        "PRO_FOMENTO", "PRO_AYUDA",
+                                        "BEN_NIVEL")
+
+    quantitative_data <- c("T_OPERACION", "T_PROPIO",
+                            "T_ARRENDADO", "T_PROD", "T_RIEGO")
+
+    questions_data <- c(q26, q38)
+
+    show_summary(filtered_data, questions_data)
+    show_summary(filtered_data, quantitative_data)
+    show_summary(filtered_data, qualitative_data)
 
     #Main data
-    write.xlsx(general_list, file = "myworkbook.xlsx",
+    write.xlsx(general_list, file = "bbdd_procesada.xlsx",
                 sheetName = "main_data", row.names = FALSE, col.names = FALSE)
     #Question 26 data
-    write.xlsx(qst26, file = "myworkbook.xlsx",
+    write.xlsx(qst26, file = "bbdd_procesada.xlsx",
                 sheetName = "Q26", append = TRUE,
                 row.names = FALSE, col.names = FALSE)
     #Other data
-    write.xlsx(extra_data, file = "myworkbook.xlsx",
+    write.xlsx(extra_data, file = "bbdd_procesada.xlsx",
                 sheetName = "extra_data", append = TRUE,
                 row.names = FALSE, col.names = FALSE)
     #Info about null data
-    write.xlsx(null_data, file = "myworkbook.xlsx",
+    write.xlsx(null_data, file = "bbdd_procesada.xlsx",
                 sheetName = "null_data", append = TRUE,
                 row.names = FALSE, col.names = FALSE)
+
+    #filtered data
+    write.xlsx(filtered_data, file = "bbdd_filtrada.xlsx",
+                sheetName = "main_data", row.names = FALSE, col.names = FALSE)
+}
+
+data_filtrada <- function() {
+    bbdd_name <- "bbdd_filtrada.xlsx"
+    imported_data <- xlsx::read.xlsx(bbdd_name, sheetIndex = 1)
+
+    for (list in imported_data) {
+        print(list)
+    }
+
 }
 
 main()
+
+#data_filtrada()
